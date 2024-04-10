@@ -9,7 +9,10 @@ function toUTF8($output) {
 
 session_start();
 
-$currentDir = $_SESSION['currentDir'] ?? getcwd();
+if (!isset($_SESSION['currentDir'])) {
+    $_SESSION['currentDir'] = getcwd();
+}
+$currentDir = $_SESSION['currentDir'];
 $files = scandir($currentDir);
 
 $output = '';
