@@ -75,6 +75,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             width: 100%;
             margin-bottom: 10px;
         }
+
+        #file-operations {
+            width: 40%;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #file-operations input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        #file-operations button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #file-operations button#set-button {
+            background-color: #007bff;
+            color: white;
+        }
+        #file-operations button#set-button:hover {
+            background-color: #0056b3;
+        }
+        #file-operations button#get-button {
+            background-color: #dc3545;
+            color: white;
+        }
+        #file-operations button#get-button:hover {
+            background-color: #c82333;
+        }
+
         #editor {
             background-color: #272822;
             color: #f8f8f2;
@@ -108,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
 <div id="file-operations">
-    <input type="text" id="file-name" placeholder="Enter file name">
+    <label for="file-name"></label><input type="text" id="file-name" placeholder="Enter file name">
     <button id="set-button">Set</button>
     <button id="get-button">Get</button>
 </div>
