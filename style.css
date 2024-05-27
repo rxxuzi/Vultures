@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+body {
+    background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+    color: #e6e6e6;
+    font-family: 'Share Tech Mono', monospace;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+}
+
+h1 {
+    font-family: 'Press Start 2P', cursive;
+    font-size: 4em;
+    margin-bottom: 40px;
+    color: #ff00ff;
+    text-shadow: 2px 2px 0 #00ffff, 4px 4px 0 #ff00ff, 6px 6px 0 #00ffff;
+    animation: glitch 1s infinite;
+}
+
+a {
+    font-family: 'Press Start 2P', cursive;
+    color: #00ff00;
+    text-decoration: none;
+    font-size: 1.5em;
+    margin: 15px;
+    position: relative;
+    display: inline-block;
+}
+
+a:before, a:after {
+    content: attr(data-text);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.5;
+}
+
+a:before {
+    color: #ff0000;
+    z-index: -1;
+    animation: glitch 0.2s infinite;
+}
+
+a:after {
+    color: #00ffff;
+    z-index: -2;
+    animation: glitch 0.3s infinite;
+}
+
+a:hover {
+    color: #ff0000;
+    transform: scale(1.1);
+    text-shadow: 0 0 5px #ff0000;
+}
+
+a:active {
+    color: #00ffff;
+}
+
+footer {
+    position: absolute;
+    bottom: 20px;
+    text-align: center;
+    font-size: 1em;
+}
+
+footer a {
+    color: #00ff00;
+    text-decoration: none;
+    margin-right: 5px;
+}
+
+footer a:hover {
+    color: #ff0000;
+}
+
+footer i {
+    margin-right: 5px;
+}
+
+@keyframes glitch {
+    0% {
+        transform: translate(0);
+    }
+    20% {
+        transform: translate(-2px, 2px);
+    }
+    40% {
+        transform: translate(-3px, -3px);
+    }
+    60% {
+        transform: translate(3px, 3px);
+    }
+    80% {
+        transform: translate(2px, -2px);
+    }
+    100% {
+        transform: translate(0);
+    }
+}
