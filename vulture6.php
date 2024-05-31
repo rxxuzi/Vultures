@@ -29,13 +29,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_FILES['fileUpload'])) {
     // $uploadOkが0の場合は、ファイルをアップロードしない
     if ($uploadOk === 0) {
         echo "File was not uploaded.";
+    } else if (move_uploaded_file($_FILES["fileUpload"]["tmp_name"], $targetFile)) {
+        echo "File " . htmlspecialchars(basename($_FILES["fileUpload"]["name"])) . " has been uploaded.";
     } else {
-        // 全てのチェックを通過した場合、ファイルをアップロードする
-        if (move_uploaded_file($_FILES["fileUpload"]["tmp_name"], $targetFile)) {
-            echo "File " . htmlspecialchars(basename($_FILES["fileUpload"]["name"])) . " has been uploaded.";
-        } else {
-            echo "File upload failed.";
-        }
+        echo "File upload failed.";
     }
     exit;
 }
@@ -88,10 +85,7 @@ function listDirectories($dir): void {
             box-shadow: 0 6px 10px 0 rgba(0,0,0,0.1);
             transition: all 0.3s;
         }
-        #dropArea.hover {
-            background-color: #fafafa;
-            border-color: #3949AB;
-        }
+
         .material-icons {
             font-size: 48px;
             color: #3F51B5;
@@ -114,19 +108,6 @@ function listDirectories($dir): void {
         }
         #fileInput {
             display: none;
-        }
-        .upload-btn {
-            background-color: #3F51B5;
-            color: white;
-            padding: 10px 20px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .upload-btn:hover {
-            background-color: #3949AB;
         }
     </style>
 </head>
